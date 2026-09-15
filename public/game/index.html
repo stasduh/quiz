@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Викторина Феликса</title>
+<style>
+  :root {
+    --bg: #0b0c14;
+    --panel: #151726;
+    --panel2: #1c1f33;
+    --purple: #8b5cf6;
+    --blue: #4f9dff;
+    --green: #3ddc97;
+    --red: #ff5c7a;
+    --text: #f2f3f9;
+    --muted: #8b90a3;
+    --border: #2a2d43;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%;
+    background: radial-gradient(circle at 50% -10%, #221a3d 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding: 20px 16px 32px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .brand { font-weight: 700; font-size: 18px; }
+  .brand span { color: var(--purple); }
+  .pill { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  h1, h2, h3 { margin: 0 0 12px; }
+  h1 { font-size: 22px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 16px; }
+  .btn {
+    display: block; width: 100%; text-align: center;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: white; border: none; border-radius: 14px;
+    padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.secondary { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .stat-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .stat { flex: 1; background: var(--panel2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; text-align: center; }
+  .stat .value { font-size: 22px; font-weight: 700; color: var(--green); }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .progress-bar { height: 6px; background: var(--panel2); border-radius: 999px; overflow: hidden; margin-bottom: 20px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--green)); transition: width 0.3s ease; }
+  .question-text { font-size: 19px; font-weight: 600; margin-bottom: 18px; line-height: 1.4; }
+  .question-media { width: 100%; border-radius: 14px; margin-bottom: 16px; display: block; }
+  #options-grid { display: grid; gap: 10px; }
+  .option-btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 14px; padding: 16px 14px; font-size: 15px; font-weight: 500;
+    cursor: pointer; text-align: left; transition: all 0.15s ease;
+  }
+  .option-btn:disabled { cursor: default; }
+  .option-btn.correct { background: rgba(61,220,151,0.18); border-color: var(--green); color: var(--green); }
+  .option-btn.wrong { background: rgba(255,92,122,0.18); border-color: var(--red); color: var(--red); }
+  .option-btn.dim { opacity: 0.4; }
+  .nav-bottom { display: flex; gap: 10px; margin-top: auto; padding-top: 16px; }
+  .nav-bottom button { flex: 1; }
+  .avatar-emoji { font-size: 34px; }
+  .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .avatar-option {
+    background: var(--panel2); border: 2px solid var(--border); border-radius: 14px;
+    padding: 12px 0; text-align: center; cursor: pointer; font-size: 28px;
+  }
+  .avatar-option.selected { border-color: var(--purple); background: rgba(139,92,246,0.15); }
+  input[type="text"] {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 14px; border-radius: 12px; font-size: 15px; margin-bottom: 14px;
+  }
+  .leader-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .leader-rank { width: 26px; font-weight: 700; color: var(--muted); }
+  .leader-rank.gold { color: #ffd166; }
+  .leader-name { flex: 1; }
+  .leader-score { color: var(--green); font-weight: 600; }
+  .leader-row.me { background: rgba(139,92,246,0.1); border-radius: 10px; padding: 10px 8px; margin: 4px 0; border-bottom: none; }
+  .center-note { text-align: center; padding: 40px 0; }
+  .center-note .emoji { font-size: 44px; margin-bottom: 12px; }
+  .error-text { color: var(--red); font-size: 13px; margin: -8px 0 14px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const API = '/api';
+const AVATARS = ['avatar_01','avatar_02','avatar_03','avatar_04','avatar_05','avatar_06','avatar_07','avatar_08'];
+const AVATAR_EMOJI = { avatar_01:'🦊', avatar_02:'🐺', avatar_03:'🦁', avatar_04:'🐯', avatar_05:'🐸', avatar_06:'🦉', avatar_07:'🐲', avatar_08:'🦄' };
+const POINTS_PER_ANSWER = 100;
+
+let state = {
+  token: localStorage.getItem('felix_token') || null,
+  user: JSON.parse(localStorage.getItem('felix_user') || 'null'),
+  round: null,       // текущий загруженный раунд
+  qIndex: 0,
+  correctCount: 0,
+  answered: false,
+};
+
+function saveSession() {
+  if (state.token) localStorage.setItem('felix_token', state.token);
+  if (state.user) localStorage.setItem('felix_user', JSON.stringify(state.user));
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem('felix_device_id');
+  if (!id) {
+    id = 'web-' + crypto.randomUUID();
+    localStorage.setItem('felix_device_id', id);
+  }
+  return id;
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const res = await fetch(API + path, { ...opts, headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || ('Ошибка сети: ' + res.status));
+  }
+  return res.json();
+}
+
+async function ensureLogin() {
+  if (state.token && state.user) return;
+  const data = await api('/auth/guest', { method: 'POST', body: { device_id: getDeviceId() } });
+  state.token = data.token;
+  state.user = data.user;
+  saveSession();
+}
+
+async function refreshUser(partial) {
+  state.user = { ...state.user, ...partial };
+  saveSession();
+}
+
+// ---------- Роутинг ----------
+
+const app = document.getElementById('app');
+
+async function boot() {
+  app.innerHTML = renderCenterNote('✨', 'Загрузка…');
+  try {
+    await ensureLogin();
+    renderHome();
+  } catch (e) {
+    app.innerHTML = renderCenterNote('⚠️', 'Не удалось подключиться к серверу') +
+      `<p style="text-align:center">${escapeHtml(e.message)}</p>` +
+      `<button class="btn" onclick="boot()">Повторить</button>`;
+  }
+}
+
+function renderCenterNote(emoji, text) {
+  return `<div class="center-note"><div class="emoji">${emoji}</div><div>${text}</div></div>`;
+}
+
+function topbar(title) {
+  return `
+    <div class="topbar">
+      <div class="brand">Викторина <span>Феликса</span></div>
+      <div class="pill">${AVATAR_EMOJI[state.user.avatar_key] || '🙂'} ${escapeHtml(state.user.nickname)}</div>
+    </div>
+  `;
+}
+
+function renderHome() {
+  const u = state.user;
+  app.innerHTML = `
+    ${topbar()}
+    <div class="card">
+      <h1>Раунд ${u.current_round}</h1>
+      <p>Пройди раунд из вопросов и заработай очки. Правильный ответ = ${POINTS_PER_ANSWER} XP.</p>
+      <div class="stat-row">
+        <div class="stat"><div class="value">${u.total_score}</div><div class="label">Всего очков</div></div>
+        <div class="stat"><div class="value">${u.current_round}</div><div class="label">Текущий раунд</div></div>
+      </div>
+      <button class="btn" onclick="startRound()">▶ Играть</button>
+    </div>
+    <div class="nav-bottom">
+      <button class="btn secondary" onclick="renderProfile()">👤 Профиль</button>
+      <button class="btn secondary" onclick="renderLeaderboard()">🏆 Лидеры</button>
+    </div>
+  `;
+}
+
+async function startRound() {
+  app.innerHTML = renderCenterNote('🎲', 'Загружаем вопросы раунда…');
+  try {
+    const data = await api('/round/current');
+    if (data.status === 'no_more_rounds') {
+      app.innerHTML = `
+        ${topbar()}
+        <div class="card">${renderCenterNote('🚧', 'Новые раунды скоро появятся!')}</div>
+        <button class="btn secondary" onclick="renderHome()">На главную</button>
+      `;
+      return;
+    }
+    state.round = data;
+    state.qIndex = 0;
+    state.correctCount = 0;
+    state.answered = false;
+    renderQuestion();
+  } catch (e) {
+    app.innerHTML = renderCenterNote('⚠️', escapeHtml(e.message)) +
+      `<button class="btn" onclick="renderHome()">На главную</button>`;
+  }
+}
+
+function renderQuestion() {
+  const round = state.round;
+  const q = round.questions[state.qIndex];
+  const total = round.questions.length;
+  const progressPct = Math.round((state.qIndex) / total * 100);
+  state.answered = false;
+
+  const cols = q.options.length <= 2 ? 1 : (q.options.length <= 4 ? 2 : (q.options.length <= 6 ? 2 : 3));
+
+  app.innerHTML = `
+    ${topbar()}
+    <div class="pill" style="margin-bottom:10px;align-self:flex-start">Раунд ${round.round_number} · Вопрос ${state.qIndex + 1} / ${total}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+    <div class="card">
+      ${q.media_url ? `<img class="question-media" src="${escapeAttr(q.media_url)}" alt="" onerror="this.style.display='none'" />` : ''}
+      <div class="question-text">${escapeHtml(q.text_question)}</div>
+      <div id="options-grid" style="grid-template-columns: repeat(${cols}, 1fr)">
+        ${q.options.map((o, i) => `
+          <button class="option-btn" id="opt-${i}" onclick="selectOption(${i})">${escapeHtml(o.text)}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function selectOption(i) {
+  if (state.answered) return;
+  state.answered = true;
+  const q = state.round.questions[state.qIndex];
+  const chosen = q.options[i];
+  const isCorrect = !!chosen.is_correct;
+  if (isCorrect) state.correctCount++;
+
+  q.options.forEach((o, idx) => {
+    const btn = document.getElementById('opt-' + idx);
+    btn.disabled = true;
+    if (o.is_correct) btn.classList.add('correct');
+    else if (idx === i) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  setTimeout(() => {
+    if (state.qIndex + 1 < state.round.questions.length) {
+      state.qIndex++;
+      renderQuestion();
+    } else {
+      finishRound();
+    }
+  }, 900);
+}
+
+async function finishRound() {
+  app.innerHTML = renderCenterNote('📡', 'Отправляем результат…');
+  const round = state.round;
+  try {
+    const result = await api('/round/complete', {
+      method: 'POST',
+      body: {
+        round_id: round.round_id,
+        round_number: round.round_number,
+        correct_count: state.correctCount,
+        total_questions: round.questions.length,
+      },
+    });
+    await refreshUser({ total_score: result.total_score, current_round: result.current_round });
+    renderResults(round.questions.length, result);
+  } catch (e) {
+    app.innerHTML = renderCenterNote('⚠️', escapeHtml(e.message)) +
+      `<button class="btn" onclick="renderHome()">На главную</button>`;
+  }
+}
+
+function renderResults(total, result) {
+  app.innerHTML = `
+    ${topbar()}
+    <div class="card" style="text-align:center">
+      ${renderCenterNote('🎉', 'Раунд пройден!')}
+      <div class="stat-row">
+        <div class="stat"><div class="value">${state.correctCount}/${total}</div><div class="label">Верных ответов</div></div>
+        <div class="stat"><div class="value">+${result.score_earned}</div><div class="label">Очков за раунд</div></div>
+      </div>
+      <p>Всего очков: <b style="color:var(--green)">${result.total_score}</b> · Следующий раунд: <b>${result.current_round}</b></p>
+      <button class="btn" onclick="startRound()">▶ Следующий раунд</button>
+      <button class="btn secondary" onclick="renderHome()">На главную</button>
+    </div>
+  `;
+}
+
+// ---------- Профиль ----------
+
+function renderProfile() {
+  const u = state.user;
+  let selectedAvatar = u.avatar_key;
+  app.innerHTML = `
+    ${topbar()}
+    <div class="card">
+      <h2>Профиль</h2>
+      <input id="nickname-input" type="text" value="${escapeAttr(u.nickname)}" maxlength="16" placeholder="Никнейм" />
+      <div id="profile-error" class="error-text"></div>
+      <div class="avatar-grid" id="avatar-grid"></div>
+      <button class="btn" onclick="saveProfile()">Сохранить</button>
+      <button class="btn ghost" onclick="renderHome()">Назад</button>
+    </div>
+  `;
+  const grid = document.getElementById('avatar-grid');
+  grid.innerHTML = AVATARS.map(a => `
+    <div class="avatar-option ${a === selectedAvatar ? 'selected' : ''}" data-avatar="${a}" onclick="pickAvatar('${a}')">${AVATAR_EMOJI[a]}</div>
+  `).join('');
+}
+
+function pickAvatar(key) {
+  document.querySelectorAll('.avatar-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.avatar === key);
+  });
+  window.__pickedAvatar = key;
+}
+
+async function saveProfile() {
+  const nickname = document.getElementById('nickname-input').value.trim();
+  const avatar_key = window.__pickedAvatar || state.user.avatar_key;
+  const errEl = document.getElementById('profile-error');
+  errEl.textContent = '';
+  try {
+    const updated = await api('/user/profile', { method: 'PATCH', body: { nickname, avatar_key } });
+    state.user = updated;
+    saveSession();
+    renderHome();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+// ---------- Лидерборд ----------
+
+async function renderLeaderboard() {
+  app.innerHTML = `${topbar()}<div class="card">${renderCenterNote('🏆', 'Загрузка таблицы лидеров…')}</div>`;
+  try {
+    const data = await api('/leaderboard?limit=50');
+    const rows = data.entries.map(e => `
+      <div class="leader-row">
+        <div class="leader-rank ${e.rank <= 3 ? 'gold' : ''}">${e.rank}</div>
+        <div>${AVATAR_EMOJI[e.avatar_key] || '🙂'}</div>
+        <div class="leader-name">${escapeHtml(e.nickname)}</div>
+        <div class="leader-score">${e.total_score}</div>
+      </div>
+    `).join('');
+    const me = data.me ? `
+      <div class="leader-row me">
+        <div class="leader-rank">${data.me.rank}</div>
+        <div>${AVATAR_EMOJI[state.user.avatar_key] || '🙂'}</div>
+        <div class="leader-name">Ты — ${escapeHtml(data.me.nickname)}</div>
+        <div class="leader-score">${data.me.total_score}</div>
+      </div>
+    ` : '';
+    app.innerHTML = `
+      ${topbar()}
+      <div class="card">
+        <h2>Таблица лидеров</h2>
+        ${rows || renderCenterNote('🤷', 'Пока никто не набрал очков')}
+      </div>
+      ${me ? `<div class="card">${me}</div>` : ''}
+      <button class="btn secondary" onclick="renderHome()">На главную</button>
+    `;
+  } catch (e) {
+    app.innerHTML = renderCenterNote('⚠️', escapeHtml(e.message)) +
+      `<button class="btn" onclick="renderHome()">На главную</button>`;
+  }
+}
+
+// ---------- Утилиты ----------
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+boot();
+</script>
+</body>
+</html>

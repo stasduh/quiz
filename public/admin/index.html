@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Викторина Феликса — Админка</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a24;
+    --panel2: #1f2330;
+    --accent: #7c5cff;
+    --accent2: #3ddc97;
+    --danger: #ff5c7a;
+    --text: #eef0f6;
+    --muted: #8b90a3;
+    --border: #2a2f3d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header h1 span { color: var(--accent); }
+  main { padding: 24px; max-width: 960px; margin: 0 auto; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  input, select {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  input[type="checkbox"] { width: 16px; height: 16px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  button.secondary { background: var(--panel2); border: 1px solid var(--border); }
+  button.danger { background: var(--danger); }
+  button:hover { opacity: 0.9; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+  .tag { padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+  .tag.on { background: rgba(61,220,151,0.15); color: var(--accent2); }
+  .tag.off { background: rgba(139,144,163,0.15); color: var(--muted); }
+  .option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .option-row input[type="text"] { flex: 1; }
+  #login-screen { max-width: 360px; margin: 80px auto; }
+  #app-screen { display: none; }
+  .muted { color: var(--muted); }
+  a.link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .error { color: var(--danger); margin-top: 8px; font-size: 13px; }
+  .back { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Викторина <span>Феликса</span> — панель управления</h1>
+  <div id="who" class="muted"></div>
+</header>
+
+<main>
+  <section id="login-screen" class="card">
+    <h2>Вход</h2>
+    <div class="row" style="flex-direction: column; align-items: stretch;">
+      <input id="login-email" type="email" placeholder="Email" />
+      <input id="login-password" type="password" placeholder="Пароль" />
+      <button onclick="login()">Войти</button>
+      <div id="login-error" class="error"></div>
+    </div>
+  </section>
+
+  <section id="app-screen">
+    <div id="rounds-view">
+      <div class="card">
+        <h2>Новый раунд</h2>
+        <div class="row">
+          <input id="new-round-number" type="number" min="1" placeholder="Номер раунда" style="width:140px" />
+          <button onclick="createRound()">Создать</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Раунды</h2>
+        <table>
+          <thead><tr><th>№</th><th>Вопросов</th><th>Статус</th><th></th></tr></thead>
+          <tbody id="rounds-table"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Топ игроков</h2>
+        <table>
+          <thead><tr><th>#</th><th>Ник</th><th>Раунд</th><th>Очки</th></tr></thead>
+          <tbody id="leaderboard-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="questions-view" style="display:none">
+      <div class="back"><a class="link" onclick="showRounds()">&larr; К списку раундов</a></div>
+      <div class="card">
+        <h2 id="questions-title"></h2>
+        <div id="question-form"></div>
+        <button onclick="addOption()" class="secondary">+ вариант</button>
+        <div class="row" style="margin-top:12px">
+          <button onclick="saveQuestion()">Сохранить вопрос</button>
+        </div>
+        <div id="question-error" class="error"></div>
+      </div>
+      <div class="card">
+        <h2>Вопросы раунда</h2>
+        <table>
+          <thead><tr><th>#</th><th>Текст</th><th>Вариантов</th><th></th></tr></thead>
+          <tbody id="questions-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const API = '/api/admin';
+let token = localStorage.getItem('felix_admin_token') || '';
+let currentRoundId = null;
+let editingQuestionId = null;
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { ...opts, headers: authHeaders(), body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (res.status === 401) { logout(); throw new Error('Сессия истекла'); }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || ('Ошибка ' + res.status));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('felix_admin_token');
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('who').textContent = '';
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const data = await fetch(API + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || 'Неверные данные');
+      return r.json();
+    });
+    token = data.token;
+    localStorage.setItem('felix_admin_token', token);
+    document.getElementById('who').textContent = data.admin.email;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    showRounds();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+function showRounds() {
+  document.getElementById('rounds-view').style.display = 'block';
+  document.getElementById('questions-view').style.display = 'none';
+  loadRounds();
+  loadLeaderboard();
+}
+
+async function loadRounds() {
+  const rounds = await api('/rounds');
+  const tbody = document.getElementById('rounds-table');
+  tbody.innerHTML = rounds.map(r => `
+    <tr>
+      <td><a class="link" onclick="openQuestions('${r.id}', ${r.roundNumber})">${r.roundNumber}</a></td>
+      <td>${r._count.questions}</td>
+      <td><span class="tag ${r.isPublished ? 'on' : 'off'}">${r.isPublished ? 'опубликован' : 'черновик'}</span></td>
+      <td>
+        <button class="secondary" onclick="togglePublish('${r.id}', ${!r.isPublished})">${r.isPublished ? 'Снять с публикации' : 'Опубликовать'}</button>
+        <button class="danger" onclick="deleteRound('${r.id}')">Удалить</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function loadLeaderboard() {
+  const top = await api('/leaderboard?limit=20');
+  const tbody = document.getElementById('leaderboard-table');
+  tbody.innerHTML = top.map((u, i) => `
+    <tr><td>${i + 1}</td><td>${u.nickname}</td><td>${u.current_round}</td><td>${u.total_score}</td></tr>
+  `).join('');
+}
+
+async function createRound() {
+  const num = parseInt(document.getElementById('new-round-number').value, 10);
+  if (!num) return;
+  await api('/rounds', { method: 'POST', body: { round_number: num } });
+  document.getElementById('new-round-number').value = '';
+  loadRounds();
+}
+
+async function togglePublish(id, next) {
+  await api(`/rounds/${id}/publish`, { method: 'PATCH', body: { is_published: next } });
+  loadRounds();
+}
+
+async function deleteRound(id) {
+  if (!confirm('Удалить раунд вместе со всеми вопросами?')) return;
+  await api(`/rounds/${id}`, { method: 'DELETE' });
+  loadRounds();
+}
+
+async function openQuestions(roundId, roundNumber) {
+  currentRoundId = roundId;
+  document.getElementById('rounds-view').style.display = 'none';
+  document.getElementById('questions-view').style.display = 'block';
+  document.getElementById('questions-title').textContent = `Раунд ${roundNumber} — добавить/редактировать вопрос`;
+  resetQuestionForm();
+  loadQuestions();
+}
+
+async function loadQuestions() {
+  const questions = await api(`/rounds/${currentRoundId}/questions`);
+  const tbody = document.getElementById('questions-table');
+  tbody.innerHTML = questions.map(q => `
+    <tr>
+      <td>${q.orderIndex}</td>
+      <td>${escapeHtml(q.textQuestion)}</td>
+      <td>${q.options.length}</td>
+      <td>
+        <button class="secondary" onclick='editQuestion(${JSON.stringify(q).replace(/'/g, "&#39;")})'>Редактировать</button>
+        <button class="danger" onclick="deleteQuestion('${q.id}')">Удалить</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function resetQuestionForm(question) {
+  editingQuestionId = question ? question.id : null;
+  const options = question ? question.options.map(o => ({ text: o.text, is_correct: o.isCorrect })) : [
+    { text: '', is_correct: true }, { text: '', is_correct: false },
+  ];
+  const orderIndex = question ? question.orderIndex : 1;
+  const text = question ? question.textQuestion : '';
+  const mediaUrl = question && question.mediaUrl ? question.mediaUrl : '';
+
+  document.getElementById('question-form').innerHTML = `
+    <div class="row" style="flex-direction: column; align-items: stretch; margin-bottom: 12px;">
+      <input id="q-order" type="number" min="1" value="${orderIndex}" placeholder="Порядок вопроса в раунде" />
+      <input id="q-text" type="text" value="${escapeHtml(text)}" placeholder="Текст вопроса" />
+      <input id="q-media" type="text" value="${escapeHtml(mediaUrl)}" placeholder="URL картинки (необязательно, внешний CDN)" />
+    </div>
+    <div id="options-list"></div>
+  `;
+  window.__options = options;
+  renderOptions();
+}
+
+function renderOptions() {
+  const list = document.getElementById('options-list');
+  list.innerHTML = window.__options.map((o, i) => `
+    <div class="option-row">
+      <input type="radio" name="correct" ${o.is_correct ? 'checked' : ''} onchange="setCorrect(${i})" />
+      <input type="text" value="${escapeHtml(o.text)}" placeholder="Вариант ${i + 1}" oninput="setOptionText(${i}, this.value)" />
+      <button class="danger" onclick="removeOption(${i})" ${window.__options.length <= 2 ? 'disabled' : ''}>×</button>
+    </div>
+  `).join('');
+}
+
+function setCorrect(i) { window.__options.forEach((o, idx) => o.is_correct = idx === i); renderOptions(); }
+function setOptionText(i, v) { window.__options[i].text = v; }
+function addOption() { window.__options.push({ text: '', is_correct: false }); renderOptions(); }
+function removeOption(i) { window.__options.splice(i, 1); renderOptions(); }
+
+function editQuestion(q) { resetQuestionForm(q); window.scrollTo(0, 0); }
+
+async function saveQuestion() {
+  const errEl = document.getElementById('question-error');
+  errEl.textContent = '';
+  const dto = {
+    order_index: parseInt(document.getElementById('q-order').value, 10) || 1,
+    text_question: document.getElementById('q-text').value.trim(),
+    media_url: document.getElementById('q-media').value.trim() || undefined,
+    options: window.__options.filter(o => o.text.trim().length > 0),
+  };
+  try {
+    if (editingQuestionId) {
+      await api(`/questions/${editingQuestionId}`, { method: 'PATCH', body: dto });
+    } else {
+      await api(`/rounds/${currentRoundId}/questions`, { method: 'POST', body: dto });
+    }
+    resetQuestionForm();
+    loadQuestions();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+async function deleteQuestion(id) {
+  if (!confirm('Удалить вопрос?')) return;
+  await api(`/questions/${id}`, { method: 'DELETE' });
+  loadQuestions();
+}
+
+// Автовход, если токен уже сохранён
+if (token) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  showRounds();
+}
+</script>
+</body>
+</html>

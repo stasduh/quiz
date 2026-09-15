@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  deviceId     String?  @unique @map("device_id")
+  googleId     String?  @unique @map("google_id")
+  nickname     String
+  avatarKey    String   @default("avatar_01") @map("avatar_key")
+  currentRound Int      @default(1) @map("current_round")
+  totalScore   BigInt   @default(0) @map("total_score")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  attempts RoundAttempt[]
+
+  @@index([totalScore(sort: Desc)])
+  @@map("users")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admins")
+}
+
+model Round {
+  id          String   @id @default(uuid())
+  roundNumber Int      @unique @map("round_number")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  questions Question[]
+  attempts  RoundAttempt[]
+
+  @@map("rounds")
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  roundId      String   @map("round_id")
+  orderIndex   Int      @map("order_index")
+  textQuestion String   @map("text_question")
+  mediaUrl     String?  @map("media_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  round   Round            @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  options QuestionOption[]
+
+  @@index([roundId, orderIndex])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String  @id @default(uuid())
+  questionId String  @map("question_id")
+  orderIndex Int     @map("order_index")
+  text       String
+  isCorrect  Boolean @default(false) @map("is_correct")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, orderIndex])
+  @@map("question_options")
+}
+
+model RoundAttempt {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  roundId        String   @map("round_id")
+  correctCount   Int      @map("correct_count")
+  totalQuestions Int      @map("total_questions")
+  scoreEarned    Int      @map("score_earned")
+  completedAt    DateTime @default(now()) @map("completed_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([userId, roundId])
+  @@map("round_attempts")
+}

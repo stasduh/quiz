@@ -1,18 +1,23 @@
 // Точка входа для деплоя NestJS-приложения как serverless-функции на Vercel.
 // Локальная разработка использует src/main.ts (обычный listen), этот файл
 // используется только в проде на Vercel.
+//
+// Vercel Node.js функции вызываются как обычный (req, res) — как раз то,
+// что умеет отдавать Express-приложение. Никакого AWS Lambda-адаптера
+// (@vendia/serverless-express и т.п.) здесь не нужно — тот формат события
+// рассчитан на API Gateway, а не на Vercel, отсюда была ошибка
+// "Unable to determine event source based on event".
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
-import express from 'express';
-import serverlessExpress from '@vendia/serverless-express';
+import express, { Express } from 'express';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { AppModule } from '../src/app.module';
 
-let cachedServer: ReturnType<typeof serverlessExpress> | undefined;
+let cachedApp: Express | undefined;
 
-async function bootstrapServer() {
+async function bootstrapServer(): Promise<Express> {
   const expressApp = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
   app.setGlobalPrefix('api');
@@ -25,12 +30,13 @@ async function bootstrapServer() {
   );
   app.enableCors();
   await app.init();
-  return serverlessExpress({ app: expressApp });
+  return expressApp;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!cachedServer) {
-    cachedServer = await bootstrapServer();
+  if (!cachedApp) {
+    cachedApp = await bootstrapServer();
   }
-  return cachedServer(req, res);
+  // Express-приложение само по себе — валидный (req, res) обработчик.
+  cachedApp(req as unknown as express.Request, res as unknown as express.Response);
 }

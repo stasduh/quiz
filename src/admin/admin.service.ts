@@ -151,6 +151,22 @@ export class AdminService {
     }
   }
 
+  // --- Смена пароля ---
+
+  async changePassword(adminId: string, currentPassword: string, newPassword: string) {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) {
+      throw new NotFoundException('Админ не найден');
+    }
+    const valid = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Текущий пароль указан неверно');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.admin.update({ where: { id: adminId }, data: { passwordHash } });
+    return { updated: true };
+  }
+
   // --- Лидерборд (read-only просмотр) ---
 
   listTopPlayers(limit: number) {

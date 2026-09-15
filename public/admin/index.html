@@ -122,6 +122,16 @@
           <tbody id="leaderboard-table"></tbody>
         </table>
       </div>
+      <div class="card">
+        <h2>Сменить пароль</h2>
+        <div class="row" style="flex-direction: column; align-items: stretch;">
+          <input id="pw-current" type="password" placeholder="Текущий пароль" />
+          <input id="pw-new" type="password" placeholder="Новый пароль (мин. 6 символов)" />
+          <button onclick="changePassword()">Сменить пароль</button>
+          <div id="pw-error" class="error"></div>
+          <div id="pw-success" class="muted"></div>
+        </div>
+      </div>
     </div>
 
     <div id="questions-view" style="display:none">
@@ -205,6 +215,23 @@ function showRounds() {
   document.getElementById('questions-view').style.display = 'none';
   loadRounds();
   loadLeaderboard();
+}
+
+async function changePassword() {
+  const current_password = document.getElementById('pw-current').value;
+  const new_password = document.getElementById('pw-new').value;
+  const errEl = document.getElementById('pw-error');
+  const okEl = document.getElementById('pw-success');
+  errEl.textContent = '';
+  okEl.textContent = '';
+  try {
+    await api('/password', { method: 'PATCH', body: { current_password, new_password } });
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    okEl.textContent = 'Пароль изменён.';
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
 }
 
 async function loadRounds() {

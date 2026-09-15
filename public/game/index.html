@@ -91,9 +91,14 @@
   .center-note .emoji { font-size: 44px; margin-bottom: 12px; }
   .error-text { color: var(--red); font-size: 13px; margin: -8px 0 14px; }
   .hidden { display: none !important; }
+  #confetti-canvas {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 999;
+  }
 </style>
 </head>
 <body>
+<canvas id="confetti-canvas"></canvas>
 <div id="app"></div>
 
 <script>
@@ -252,7 +257,10 @@ function selectOption(i) {
   const q = state.round.questions[state.qIndex];
   const chosen = q.options[i];
   const isCorrect = !!chosen.is_correct;
-  if (isCorrect) state.correctCount++;
+  if (isCorrect) {
+    state.correctCount++;
+    launchConfetti();
+  }
 
   q.options.forEach((o, idx) => {
     const btn = document.getElementById('opt-' + idx);
@@ -307,6 +315,7 @@ function renderResults(total, result) {
       <button class="btn secondary" onclick="renderHome()">На главную</button>
     </div>
   `;
+  launchFireworks();
 }
 
 // ---------- Профиль ----------
@@ -396,6 +405,108 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+// ---------- Конфетти / фейерверк ----------
+
+const confettiCanvas = document.getElementById('confetti-canvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+let confettiParticles = [];
+let confettiRafId = null;
+
+function resizeConfettiCanvas() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeConfettiCanvas);
+resizeConfettiCanvas();
+
+const CONFETTI_COLORS = ['#8b5cf6', '#4f9dff', '#3ddc97', '#ffd166', '#ff5c7a'];
+
+function addParticles(list) {
+  confettiParticles.push(...list);
+  if (!confettiRafId) confettiRafId = requestAnimationFrame(tickConfetti);
+}
+
+// Небольшой залп конфетти из центра — за каждый правильный ответ.
+function launchConfetti() {
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight * 0.4;
+  const particles = [];
+  for (let i = 0; i < 60; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 6;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      size: 4 + Math.random() * 4,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      rotation: Math.random() * Math.PI,
+      spin: (Math.random() - 0.5) * 0.3,
+      life: 0,
+      maxLife: 60 + Math.random() * 30,
+    });
+  }
+  addParticles(particles);
+}
+
+// Более крупный "фейерверк" из нескольких залпов — по завершении раунда.
+function launchFireworks() {
+  const bursts = [0.25, 0.5, 0.75];
+  bursts.forEach((xFrac, i) => {
+    setTimeout(() => {
+      const cx = window.innerWidth * xFrac;
+      const cy = window.innerHeight * (0.3 + Math.random() * 0.2);
+      const particles = [];
+      for (let j = 0; j < 90; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 7;
+        particles.push({
+          x: cx, y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 3 + Math.random() * 4,
+          color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+          rotation: Math.random() * Math.PI,
+          spin: (Math.random() - 0.5) * 0.3,
+          life: 0,
+          maxLife: 70 + Math.random() * 40,
+        });
+      }
+      addParticles(particles);
+    }, i * 300);
+  });
+}
+
+function tickConfetti() {
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  confettiParticles = confettiParticles.filter((p) => p.life < p.maxLife);
+
+  for (const p of confettiParticles) {
+    p.life++;
+    p.vy += 0.12; // гравитация
+    p.x += p.vx;
+    p.y += p.vy;
+    p.rotation += p.spin;
+
+    const fadeStart = p.maxLife * 0.7;
+    const alpha = p.life > fadeStart ? Math.max(0, 1 - (p.life - fadeStart) / (p.maxLife - fadeStart)) : 1;
+
+    confettiCtx.save();
+    confettiCtx.globalAlpha = alpha;
+    confettiCtx.translate(p.x, p.y);
+    confettiCtx.rotate(p.rotation);
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+    confettiCtx.restore();
+  }
+
+  if (confettiParticles.length > 0) {
+    confettiRafId = requestAnimationFrame(tickConfetti);
+  } else {
+    confettiRafId = null;
+  }
+}
 
 boot();
 </script>

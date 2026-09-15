@@ -7,10 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { AdminAuthGuard } from './admin-auth.guard';
+import { AdminAuthGuard, AdminRequest } from './admin-auth.guard';
 import { AdminService } from './admin.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AdminLoginDto } from './dto/login.dto';
 import { UpsertQuestionDto } from './dto/upsert-question.dto';
 import { UpsertRoundDto } from './dto/upsert-round.dto';
@@ -22,6 +24,16 @@ export class AdminController {
   @Post('login')
   login(@Body() dto: AdminLoginDto) {
     return this.adminService.login(dto.email, dto.password);
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch('password')
+  changePassword(@Req() req: AdminRequest, @Body() dto: ChangePasswordDto) {
+    return this.adminService.changePassword(
+      req.adminId as string,
+      dto.current_password,
+      dto.new_password,
+    );
   }
 
   @UseGuards(AdminAuthGuard)
